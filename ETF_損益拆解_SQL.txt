@@ -1,0 +1,490 @@
+--隔日版本: 損益分析
+
+select 
+S1.TradeDate as DataDate,
+S1.TraderNm,
+S1.gaccountid,
+S1.newIAccountId as NaccountId,
+S1.IAccountId,
+S1.CommodityId,
+S1.CommodityNm,
+S1.Strategy,
+S1.CommodityKind,
+--
+S1.hedgeLinkId,
+S1.hedgeLinkName,
+--
+S1.CurrencyId,
+S1.ContractSize,
+S1.Unit,
+
+S1.tCashDivAdj,
+--S1.yInvAvgP,
+S1.yInvShare,
+S1.tInvShare,
+S1.BuyQty,
+S1.CreBuyQty,
+S1.SEditBuyQty,
+S1.BuyQty+S1.CreBuyQty+S1.SEditBuyQty as TBuyQty,
+S1.BuyAmt,
+S1.CreBuyAmt,
+S1.SEditBuyAmt,
+S1.BuyAmt+S1.CreBuyAmt+S1.SEditBuyAmt as TBuyAmt,
+S1.BuyAvgPrice,
+S1.CreBuyAvgPrice,
+S1.SEditBuyAvgPrice,
+case when S1.BuyQty+S1.CreBuyQty+S1.SEditBuyQty=0 then 0 else (S1.BuyAmt+S1.CreBuyAmt+S1.SEditBuyAmt)/(S1.BuyQty+S1.CreBuyQty+S1.SEditBuyQty)/S1.ContractSize end as TBuyAvgPrice,
+S1.SellQty,
+S1.RedSellQty,
+S1.SEditSellQty,
+S1.SellQty+S1.RedSellQty+S1.SEditSellQty as TSellQty,
+S1.SellAmt,
+S1.RedSellAmt,
+S1.SEditSellAmt,
+S1.SellAmt+S1.RedSellAmt+S1.SEditSellAmt as TSellAmt,
+S1.SellAvgPrice,
+S1.RedSellAvgPrice,
+S1.SEditSellAvgPrice,
+case when S1.SellQty+S1.RedSellQty+S1.SEditSellQty=0 then 0 else (S1.SellAmt+S1.RedSellAmt+S1.SEditSellAmt)/(S1.SellQty+S1.RedSellQty+S1.SEditSellQty)/S1.ContractSize end as TSellAvgPrice,
+S1.tNAV,
+S1.tPrice,
+S1.yNAV,
+S1.yPrice,
+S1.tSpread,
+S1.ySpread,
+S1.tSpreadChg,
+S1.tNAVChg,
+S1.tPriceChg,
+S1.tFXRate,
+S1.yFXRate,
+S1.tFXRateChg,
+S1.tFXRatePctChg,
+--S1.USD,
+--S1.CNY,
+--S1.HKD,
+--S1.JPY,
+--S1.EUR,
+--S1.KRW,
+
+--S1.USDExposure_USD,
+S1.USDExposure_NTD,
+S1.USDFXPctChg,
+
+--S1.CNYExposure_CNY,
+S1.CNYExposure_NTD,
+S1.CNYFXPctChg,
+
+--S1.JPYExposure_JPY,
+S1.JPYExposure_NTD,
+S1.JPYFXPctChg,
+
+--PL分析:
+--1.價差PL
+S1.SpreadChgPL, S1.NewPosSpreadChgPL, S1.ETFUSDChgPL, S1.ETFCNYChgPL, S1.ETFJPYChgPL, S1.FutFXChgPL, 
+--2.匯率PL
+(S1.ETFUSDChgPL+S1.ETFCNYChgPL+S1.ETFJPYChgPL+S1.FutFXChgPL) as FXChgPL,
+
+S1.SpreadChgPL+S1.NewPosSpreadChgPL as TotalSpreadChgPL,
+
+S1.SpreadChgPL-(S1.ETFUSDChgPL+S1.ETFCNYChgPL+S1.ETFJPYChgPL+S1.FutFXChgPL) as SpreadChgPL_dFX,
+--3.價差PL-匯率PL
+
+S1.SpreadChgPL+S1.NewPosSpreadChgPL-(S1.ETFUSDChgPL+S1.ETFCNYChgPL+S1.ETFJPYChgPL+S1.FutFXChgPL) as TotalSpreadChgPL_dFX,
+--case 
+--when S1.CommodityKind='ETF' then
+--S1.SpreadChgPL+S1.NewSpreadPL-(S1.ETFUSDChgPL+S1.ETFCNYChgPL+S1.ETFJPYChgPL+S1.FutFXChgPL) 
+--else
+--S1.SpreadChgPL+S1.NewSpreadPL
+--end as TotalSpreadChgPL_dFX,
+
+--4.NetDeltaPL
+S1.NetDeltaPL as NetDeltaPL, 
+--S1.NetDeltaPL-S1.FutFXChgPL as NetDeltaPL, 
+
+--case 
+--when S1.CommodityKind='ETF' then 
+--S1.NetDeltaPL
+--else
+--S1.NetDeltaPL-S1.FutFXChgPL
+--end as NetDeltaPL, 
+
+--5.DayTradePL
+S1.DayTradePL, 
+--6.Total
+(S1.SpreadChgPL+S1.NewPosSpreadChgPL+S1.NetDeltaPL+S1.DayTradePL) as totalDailyPL,
+
+S1.tTotalCost,S1.tDOtherIncome,S1.tDTradePL,S1.tDNetTradePL
+
+--debug
+
+
+from
+(
+select T1.*
+,case when T1.FCurrency1='USD' then T1.yInvShare*T1.yNAV*(T1.USD+T1.HKD) else 0 end as USDExposure_USD  --ETF之USD曝險金額
+,case when T1.FCurrency2='CNY' then T1.yInvShare*T1.yNAV*(T1.CNY) else 0 end as CNYExposure_CNY        --ETF之CNY曝險金額
+,case when T1.FCurrency3='JPY' then T1.yInvShare*T1.yNAV*(T1.JPY) else 0 end as JPYExposure_JPY         --ETF之JPY曝險金額
+
+,case when T1.FCurrency1='NTD' then 1 else tUSD.NAV end as tUSDFX  --今日USD匯率
+,case when T1.FCurrency1='NTD' then 1 else yUSD.NAV end as yUSDFX  --昨日USD匯率
+
+,case when T1.FCurrency2='NTD' then 1 else tCNY.NAV end as tCNYFX  --今日CNY匯率
+,case when T1.FCurrency2='NTD' then 1 else yCNY.NAV end as yCNYFX  --昨日CNY匯率
+
+,case when T1.FCurrency3='NTD' then 1 else tJPY.NAV end as tJPYFX  --今日JPY匯率
+,case when T1.FCurrency3='NTD' then 1 else yJPY.NAV end as yJPYFX  --昨日JPY匯率
+
+--價差變動PL(未扣匯率PL)
+,case when T1.CommodityKind='ETF' then T1.yInvShare*(T1.tSpread-T1.ySpread)*(T1.tFXRate) else 0 end as SpreadChgPL 
+--ETF : USD匯率變動PL
+,case when T1.CommodityKind='ETF' then T1.yInvShare*T1.yNAV*(T1.USD+T1.HKD)*((case when T1.FCurrency1='NTD' then 1 else tUSD.NAV end)/(case when T1.FCurrency1='NTD' then 1 else yUSD.NAV end)-1)*T1.tFXRate else 0 end as ETFUSDChgPL
+--ETF : CNY匯率變動PL
+,case when T1.CommodityKind='ETF' then T1.yInvShare*T1.yNAV*(T1.CNY)*((case when T1.FCurrency2='NTD' then 1 else tCNY.NAV end)/(case when T1.FCurrency2='NTD' then 1 else yCNY.NAV end)-1)*T1.tFXRate else 0 end as ETFCNYChgPL
+--ETF : JPY匯率變動PL
+,case when T1.CommodityKind='ETF' then T1.yInvShare*T1.yNAV*(T1.JPY)*((case when T1.FCurrency3='NTD' then 1 else tJPY.NAV end)/(case when T1.FCurrency3='NTD' then 1 else yJPY.NAV end)-1)*T1.tFXRate else 0 end as ETFJPYChgPL
+
+
+--Futures : 匯率變動PL
+,case when T1.CommodityKind='ETF' then 0 else T1.yInvShare*(T1.tPriceChg)*(T1.ContractSize)*(T1.tFXRateChg) end as FutFXChgPL
+
+
+--NetDeltaPL	  
+,case when T1.CommodityKind='ETF' then T1.yInvShare*(T1.tNAVChg) else (T1.yInvShare*(T1.tPriceChg)*(T1.ContractSize) +T1.yCashDivAmt)*(tFXRate) end as NetDeltaPL
+
+
+
+--新增部位價差	  
+,(case when T1.BuyQty-T1.SellQty>0 then T1.BuyQty-T1.SellQty else 0 end)*(T1.tPrice-T1.BuyAvgPrice)*(tFXRate)*(T1.ContractSize) 
+ +(case when T1.SellQty-T1.BuyQty>0 then T1.SellQty-T1.BuyQty else 0 end)*(T1.SellAvgPrice-T1.tPrice)*(tFXRate)*(T1.ContractSize) as NewPosSpreadChgPL
+ 
+--DayTradePL
+,(case when T1.BuyQty<T1.SellQty then T1.BuyQty else T1.SellQty end)*(T1.tPrice-T1.BuyAvgPrice)*(tFXRate)*(T1.ContractSize)
+ +(case when T1.BuyQty<T1.SellQty then T1.BuyQty else T1.SellQty end)*(T1.SellAvgPrice-T1.tPrice)*(tFXRate)*(T1.ContractSize) as DayTradePL
+
+--ETF USD匯率曝險約當台幣金額
+,T1.yInvShare*T1.yNAV*(T1.USD+T1.HKD)*T1.tFXRate as USDExposure_NTD
+--ETF CNY匯率曝險約當台幣金額
+,T1.yInvShare*T1.yNAV*(T1.CNY)*T1.tFXRate as  CNYExposure_NTD
+--ETF JPY匯率曝險約當台幣金額
+,T1.yInvShare*T1.yNAV*(T1.JPY)*T1.tFXRate as  JPYExposure_NTD
+
+--USD匯率變動率
+,case when (T1.USD=0 and T1.HKD=0) then 0 else (tUSD.NAV/ yUSD.NAV)-1 end as USDFXPctChg
+--CNY匯率變動率
+,case when T1.CNY=0 then 0 else (tCNY.NAV/ yCNY.NAV)-1 end as CNYFXPctChg
+--JPY匯率變動率
+,case when T1.JPY=0 then 0 else (tJPY.NAV/ yJPY.NAV)-1 end as JPYFXPctChg
+
+ from
+(
+SELECT 
+CONVERT(varchar(10), A.[TradeDate],111) as TradeDate
+      ,A.[TraderNm]
+	  ,A.[gaccountid]
+	  ,case when (left(A.[IAccountId],2)='07' or left(A.[IAccountId],2)='0H') then right(A.[IAccountId],3) else left(A.[IAccountId],3) end as newIAccountId
+      ,A.[IAccountId]
+      --,A.[iaccountnm]
+
+      ,A.[CommodityId]
+      ,A.[CommodityNm]
+      --,A.[TradeType]
+	  ,case 
+	   when (A.[CommodityId]='00677U' or left(A.[CommodityId],2)='VX') then 'VIX' 
+	   when (A.[CommodityId] in ('00672L','00673R') or left(A.[CommodityId],2)='CL') then '商品' 	   
+	   else I.[Strategy] end as Strategy  --策略分類
+      ,A.[CommodityKind]
+      ,A.[CurrencyId]
+      ,case when A.CommodityKind='Future' then  A.[ContractSize] else 1 end as ContractSize
+      ,A.[Unit]
+	  ,A.[InvAvgP] as yInvAvgP --前日平均成本
+	  ,isnull(J.[InvShare],0) as yInvShare  --前日庫存
+	  ,A.[InvShare] as tInvShare  --當日庫存
+	  ,A.[MPrice] as tMPrice----當日收盤價
+	  ,A.[MV] as tMV       --當日DeltaAmount
+      ,case when (right(A.IAccountId,1)='U' or right(A.IAccountId,1)='S') then 0 else isnull(A.[BuyShare],0) end as BuyQty       --當日買進股數
+	  ,isnull(A.[BuyAmt],0) as BuyAmt         --當日買進金額(原幣)
+      ,isnull(case when A.[CommodityNm]='白銀期貨' then A.[BuyAvgP]/100 
+	   when  A.[BuyAvgP]=0 and A.[BuyShare]<>0 then A.[BuyAmt]/A.[BuyShare]
+	   else A.[BuyAvgP] end,0) as BuyAvgPrice    --當日買進均價
+
+
+      ,isnull(A.[SellShare],0) as SellQty     --當日賣出股數
+	  ,isnull(A.[SellAmt],0) as SellAmt       --當日賣出金額(原幣)
+      ,isnull(case when A.[CommodityNm]='白銀期貨' then A.[SellAvgP] /100 
+	   when A.[SellAvgP]=0 and A.[SellShare]<>0 then A.[SellAmt]/A.[SellShare]
+	   else A.[SellAvgP] end,0) as SellAvgPrice  --當日賣出均價
+
+	   --ETF申贖資料/期貨自建交易
+	   ,isnull(L.BuyAmt,0) as CreBuyAmt, isnull(L.BuyAvgPrice,0) as CreBuyAvgPrice, isnull(L.BuyQty,0) as CreBuyQty
+	   ,isnull(L.SellAmt,0) as RedSellAmt, isnull(L.SellAvgPrice,0) as RedSellAvgPrice, isnull(L.SellQty,0) as RedSellQty
+	   ,isnull(B.BuyAmt,0) as SEditBuyAmt, isnull(B.BuyAvgPrice,0) as SEditBuyAvgPrice, isnull(B.BuyQty,0) as SEditBuyQty
+	   ,isnull(C.SellAmt,0) as SEditSellAmt, isnull(C.SellAvgPrice,0) as SEditSellAvgPrice, isnull(C.SellQty,0) as SEditSellQty
+
+
+
+	  --,A.[MPrice] as tMPrice----當日收盤價
+	  --,A.[MV] as tMV       --當日DeltaAmount
+      --,A.[BuyShare] as TBuyQty       --當日買進股數
+      --,case when A.[CommodityNm]='白銀期貨' then A.[BuyAvgP]/100 else A.[BuyAvgP] end as BuyAvgPrice    --當日買進均價
+      --,A.[BuyAmt] as TBuyAmt         --當日買進金額(原幣)
+      --,A.[SellShare] as TSellQty     --當日賣出股數
+      --,case when A.[CommodityNm]='白銀期貨' then A.[SellAvgP] /100 else A.[SellAvgP] end as SellAvgPrice  --當日賣出均價
+      --,A.[SellAmt] as TSellAmt       --當日賣出金額(原幣)
+
+
+      ,A.[DTradePL]*(case when A.CurrencyId='NTD' then 1 else G.NAV end) as tDTradePL       --當日交易損益
+      ,A.[DTax]*(case when A.CurrencyId='NTD' then 1 else G.NAV end)  as tDTax         --當日交易稅
+      ,A.[DSettleFee]*(case when A.CurrencyId='NTD' then 1 else G.NAV end)  as tDSettleFee   --當日結算費
+      ,A.[DCommission]*(case when A.CurrencyId='NTD' then 1 else G.NAV end) as tDCommission   --當日手續費
+      ,A.[DStkBorrowFee]*(case when A.CurrencyId='NTD' then 1 else G.NAV end) as tDStkBorrowFee --當日借券費
+      ,A.[DInterestCost]*(case when A.CurrencyId='NTD' then 1 else G.NAV end) as tDInterestCost --當日資金成本
+	  ,(A.[DTax]+A.[DSettleFee]+A.[DCommission]+A.[DStkBorrowFee]+A.[DInterestCost])*(case when A.CurrencyId='NTD' then 1 else G.NAV end) as tTotalCost  --當日總成本
+	  ,(A.[DTradePL]-A.[DTax]-A.[DSettleFee]-A.[DCommission]-A.[DStkBorrowFee]-A.[DInterestCost])*(case when A.CurrencyId='NTD' then 1 else G.NAV end) as tDNetTradePL    --當日交易淨損益
+	  ,isnull(J.[CashDivAmt],0)*(case when A.CurrencyId='NTD' then 1 else G.NAV end) as yCashDivAmt    --前日現金股利收入
+
+      ,A.[DOtherIncome]*(case when A.CurrencyId='NTD' then 1 else G.NAV end) as tDOtherIncome  --當日其他收入
+	  ,A.[CashDivAmt]*(case when A.CurrencyId='NTD' then 1 else G.NAV end) as tCashDivAmt    --當日現金股利收入
+      ,A.[CashDivAdj]*(case when A.CurrencyId='NTD' then 1 else G.NAV end) as tCashDivAdj
+      ,A.[FxRate] as sys_yFxRate  --系統當日匯率
+
+	  
+	  ,D.NAV as tNAV   --今日淨值
+	  ,D.Price as tPrice --今日市價
+	  ,E.NAV as yNAV   --前日淨值
+	  ,E.Price as yPrice --前日市價
+	  ,case when A.CommodityKind='ETF' then D.Price-D.NAV else 0 end as tSpread   --今日價差
+	  ,case when A.CommodityKind='ETF' then E.Price-E.NAV else 0 end as ySpread   --前日價差
+	  ,case when A.CommodityKind='ETF' then (D.Price-D.NAV)-(E.Price-E.NAV) else 0 end as tSpreadChg   --今日價差變動
+
+	  ,case when A.CommodityKind in ('ETF','Future','Stock') then D.NAV-E.NAV else 0 end as tNAVChg     --今日淨值變動
+	  ,case when A.CommodityKind in ('ETF','Future','Stock') then D.Price-E.Price else 0 end as tPriceChg     --今日市價變動
+
+	  ,case when A.CurrencyId='NTD' then 1 else F.NAV end as tFXRate  --今日ETF幣別匯率
+	  ,case when A.CurrencyId='NTD' then 1 else G.NAV end as yFXRate  --前日ETF幣別匯率
+	  ,case when A.CurrencyId='NTD' then 0 else F.NAV-G.NAV end as tFXRateChg  --ETF幣別匯率變動值
+	  ,case when A.CurrencyId='NTD' then 0 else F.NAV/G.NAV-1 end as tFXRatePctChg  --ETF幣別匯率變動率
+
+
+	  ,isnull(H.USD,0) as USD  --USD曝險比率
+	  ,isnull(H.CNY,0) as CNY  --CNY曝險比率
+	  ,isnull(H.HKD,0) as HKD  --JPY曝險比率
+	  ,isnull(H.JPY,0) as JPY  --HKD曝險比率
+	  ,isnull(H.EUR,0) as EUR  --EUR曝險比率
+	  ,isnull(H.KRW,0) as KRW  --KRW曝險比率
+	  
+	 
+	  --以下為損益分析
+	  --,isnull(case when A.CommodityKind='ETF' then A.[InvShare]*((D.Price-D.NAV)-(E.Price-E.NAV))*(case when A.CurrencyId='NTD' then 1 else F.NAV end ) else 0 end,0) as SpreadChgPL  --價差變動PL(未扣匯率PL)
+	  --,isnull(case when A.CommodityKind='ETF' then A.[InvShare]*((D.Price-D.NAV)-(E.Price-E.NAV))*(case when A.CurrencyId='NTD' then 1 else F.NAV end ) else 0 end,0) 
+	  --    -isnull(case when A.CommodityKind='ETF' then A.[InvShare]*E.NAV*(isnull(H.USD,0)+isnull(H.HKD,0))*(F.NAV/G.NAV-1) else A.[InvShare]*(D.Price-E.Price)*(case when A.CommodityKind='Future' then  A.[ContractSize] else 1 end)*(F.NAV-G.NAV) end,0) as SpreadChgPL_dFX   --價差變動PL(扣匯率PL)
+	  --,isnull(case when A.CommodityKind='ETF' then A.[InvShare]*E.NAV*(isnull(H.USD,0)+isnull(H.HKD,0))*(F.NAV/G.NAV-1)*F.NAV else A.[InvShare]*(D.Price-E.Price)*(case when A.CommodityKind='Future' then  A.[ContractSize] else 1 end)*(F.NAV-G.NAV) end,0) as FXChgPL  --匯率變動PL
+	  
+
+	  --,case when A.CommodityKind='ETF' then A.[InvShare]*(D.NAV-E.NAV) else (A.[InvShare]*(D.Price-E.Price)*(case when A.CommodityKind='Future' then  A.[ContractSize] else 1 end)+A.[CashDivAmt])*(case when A.CurrencyId='NTD' then 1 else F.NAV end) end as NetDeltaPL  --NetDeltaPL
+	  
+	  --,isnull((case when isnull(B.TBuyQty,0)-isnull(C.TSellQty,0)>0 then isnull(B.TBuyQty,0)-isnull(C.TSellQty,0) else 0 end)*(D.Price-isnull(B.BuyAvgPrice,0))*(case when A.CurrencyId='NTD' then 1 else F.NAV end)*(case when A.CommodityKind='Future' then  A.[ContractSize] else 1 end),0) + isnull((case when isnull(C.TSellQty,0)-isnull(B.TBuyQty,0)>0 then isnull(C.TSellQty,0)-isnull(B.TBuyQty,0) else 0 end)*(isnull(C.SellAvgPrice,0)-D.Price)*(case when A.CurrencyId='NTD' then 1 else F.NAV end)*(case when A.CommodityKind='Future' then  A.[ContractSize] else 1 end),0) as NewSpreadPL
+	  --,isnull((case when isnull(B.TBuyQty,0)<isnull(C.TSellQty,0) then isnull(B.TBuyQty,0) else isnull(C.TSellQty,0) end)*(D.Price-isnull(B.BuyAvgPrice,0))*(case when A.CurrencyId='NTD' then 1 else F.NAV end)*(case when A.CommodityKind='Future' then  A.[ContractSize] else 1 end),0) + isnull((case when isnull(B.TBuyQty,0)<isnull(C.TSellQty,0) then isnull(B.TBuyQty,0) else isnull(C.TSellQty,0) end)*(isnull(C.SellAvgPrice,0)-D.Price)*(case when A.CurrencyId='NTD' then 1 else F.NAV end)*(case when A.CommodityKind='Future' then  A.[ContractSize] else 1 end),0) as DayTradePL
+      --,isnull(case when A.CommodityKind='ETF' then A.[InvShare]*E.NAV*(isnull(H.USD,0)+isnull(H.HKD,0)) else A.[InvShare]*(D.Price-E.Price)*(case when A.CommodityKind='Future' then  A.[ContractSize] else 1 end) end,0) as FXPositionChg  --匯率金額
+	  --,isnull(case when A.CommodityKind='ETF' then ((case when A.CurrencyId='NTD' then 1 else F.NAV end )/(case when A.CurrencyId='NTD' then 1 else G.NAV end)-1) else ((case when A.CurrencyId='NTD' then 1 else F.NAV end)-(case when A.CurrencyId='NTD' then 1 else G.NAV end)) end,0) as FXChg  --匯率變動額
+	  --以上為損益分析
+
+	  ,'USD' as FCurrency1
+	  ,'CNY' as FCurrency2
+	  ,'JPY' as FCurrency3
+	  ,'EUR' as FCurrency4
+	  ,'KRW' as FCurrency5
+	  ,case 
+	   when A.CommodityKind='ETF' then K.hedgeLinkId1
+	   when A.CommodityKind='Future' and left(A.CommodityId,2) in ('CL','GC','YM','NQ','ES','SI','VX','ZS','TN','UB','US') then left(A.CommodityId,2)
+	   when A.CommodityKind='Future' and left(A.CommodityId,3) in ('HHI','MHI','NCH','SCN','SSI','JTI','TXF','EXF','FXF','STW') then left(A.CommodityId,3)
+	   when A.CommodityKind='Future' and left(A.CommodityId,4) = 'LCOB' then left(A.CommodityId,4)
+	   when A.CommodityKind='Stock' and I.Strategy='台股' then 'TXF'
+
+	   else '' end as hedgeLinkId
+
+	   ,case
+	   when A.CommodityKind='ETF' then K.hedgeLinkName1
+	   when A.CommodityKind='Future' then A.CommodityNm
+	   when A.CommodityKind='Stock' and I.Strategy='台股' then '臺股期貨'
+	   else '' end as hedgeLinkName
+
+	  --,K.[hedgeLinkId2]
+	  --,K.[hedgeLinkName2]
+	  --,K.[hedgeLinkId3]
+	  --,K.[hedgeLinkName3]
+
+  FROM [DeriPosition].[dbo].[vwDailyPL] A
+ 
+  left join
+  (
+  --買成交回報(自建交易)
+select A.[TradeDate],A.[TraderId],A.[IAccountId],A.[CommodityId],A.[CommodityNm],A.[BS],A.TotalQty as BuyQty,
+case when A.[CommodityNm]='白銀期貨' then A.TotalAmount/100 else A.TotalAmount end as BuyAmt,cast((case when A.[CommodityNm]='白銀期貨' then A.TotalAmount/100 else A.TotalAmount end)/A.TotalQty as numeric(18,12)) as BuyAvgPrice
+from
+(SELECT [TradeDate],[TraderId],[IAccountId],[CommodityId],[CommodityNm],[BS],sum([Qty]) as TotalQty,sum([Price]*[Qty]) as TotalAmount FROM [DeriPosition].[dbo].[TradeHty]
+where TradeDate='2019/10/8'    
+and TraderId in ('K31','K32','K36','W12')
+and BS= 'B' 
+and IsVirtual='Y'
+and MUser<>'0000799'
+group by [TradeDate],[TraderId],[IAccountId],[CommodityId],[CommodityNm],[BS]) A 
+  ) B
+  on A.[CommodityId]=B.[CommodityId] and A.[TraderId]=B.[TraderId] and A.[IAccountId]=B.[IAccountId]
+
+  left join
+  (
+  --賣成交回報(自建交易)
+select A.[TradeDate],A.[TraderId],A.[IAccountId],A.[CommodityId],A.[CommodityNm],A.[BS],A.TotalQty as SellQty,
+case when A.[CommodityNm]='白銀期貨' then A.TotalAmount/100 else A.TotalAmount end as SellAmt,cast((case when A.[CommodityNm]='白銀期貨' then A.TotalAmount/100 else A.TotalAmount end)/A.TotalQty as numeric(18,12)) as SellAvgPrice
+from
+(SELECT [TradeDate],[TraderId],[IAccountId],[CommodityId],[CommodityNm],[BS],sum([Qty]) as TotalQty,sum([Price]*[Qty]) as TotalAmount FROM [DeriPosition].[dbo].[TradeHty]
+where TradeDate='2019/10/8'    
+and TraderId in ('K31','K32','K36','W12')
+and BS= 'S' 
+and IsVirtual='Y'
+and MUser<>'0000799'
+group by [TradeDate],[TraderId],[IAccountId],[CommodityId],[CommodityNm],[BS]) A
+  ) C
+  on A.[CommodityId]=C.[CommodityId] and A.[TraderId]=C.[TraderId] and A.[IAccountId]=C.[IAccountId]
+
+  left join  --ETF,Futures當日價格
+  (
+	select * from [10.19.1.45].[newEDIS].[dbo].[ETFValue] where ProductType in ('ETF','Futures','Stock') and DataDate='2019/10/8' and NAV>0 and Price>0
+  ) D
+  on A.CommodityId=D.ProductLink
+  
+  left join  --ETF,Futures前日價格
+  (
+	select * from [10.19.1.45].[newEDIS].[dbo].[ETFValue] where ProductType in ('ETF','Futures','Stock') and DataDate='2019/10/7' and NAV>0 and Price>0
+  ) E
+  on A.CommodityId=E.ProductLink 
+
+  left join  --當日匯率
+  (
+	select * from [10.19.1.45].[newEDIS].[dbo].[ETFValue] where ProductType='FX' and DataDate='2019/10/8'
+  ) F
+  on A.currencyId=F.ProductLink --and A.TradeDate=E.DataDate
+
+  left join  --前日匯率
+  (
+	select * from [10.19.1.45].[newEDIS].[dbo].[ETFValue] where ProductType='FX' and DataDate='2019/10/7'
+  ) G
+  on A.currencyId=G.ProductLink --and A.TradeDate=E.DataDate
+
+  left join  --外幣曝險
+  (
+	SELECT ExtensionValue.CommodityId
+	,SUM(CASE right(ExtensionValue.ExtensionId,3)  WHEN 'USD' THEN cast(ExtensionValue.ExtensionValue AS DECIMAL(6, 4))  ELSE 0 END) AS USD 
+	,SUM(CASE right(ExtensionValue.ExtensionId,3)  WHEN 'CNY' THEN cast(ExtensionValue.ExtensionValue AS DECIMAL(6, 4))  ELSE 0 END) AS CNY 
+	,SUM(CASE right(ExtensionValue.ExtensionId,3)  WHEN 'HKD' THEN cast(ExtensionValue.ExtensionValue AS DECIMAL(6, 4))  ELSE 0 END) AS HKD
+	,SUM(CASE right(ExtensionValue.ExtensionId,3)  WHEN 'JPY' THEN cast(ExtensionValue.ExtensionValue AS DECIMAL(6, 4))  ELSE 0 END) AS JPY
+	,SUM(CASE right(ExtensionValue.ExtensionId,3)  WHEN 'EUR' THEN cast(ExtensionValue.ExtensionValue AS DECIMAL(6, 4))  ELSE 0 END) AS EUR
+	,SUM(CASE right(ExtensionValue.ExtensionId,3)  WHEN 'KRW' THEN cast(ExtensionValue.ExtensionValue AS DECIMAL(6, 4))  ELSE 0 END) AS KRW
+	FROM DeriPosition.dbo.ExtensionValue ExtensionValue
+	WHERE Left(ExtensionValue.CommodityId,2)='00'
+	GROUP BY ExtensionValue.CommodityId
+  ) H
+  on A.CommodityId=H.CommodityId --and A.CurrencyId=H.CurrencyId
+
+  left join  --策略分類
+  (
+	SELECT  [gaccountid],[Traderid],[Strategy] FROM [10.19.1.45].[newEDIS].[dbo].[gAccountList]
+  ) I
+  on A.gaccountid=I.gaccountid
+
+  left join  --前日vwdailyPL
+  (
+	SELECT * FROM [DeriPosition].[dbo].[vwDailyPL]
+	WHERE TradeDate='2019/10/7' and (DataSource='Stock' or (DataSource<>'Stock1' and DataSource<>''))
+	and (
+        (strategymainid='Arb_Spd' and Traderid in ('K31','K32','K36'))   
+     or ( strategymainid='WMM' and Traderid = 'W12' and (CommodityId in ('00677U','00672L','00673R') or left(CommodityId,2) in ('VX','CL'))) 
+    ) 
+	
+  ) J
+  on A.gaccountid=J.gaccountid and A.IAccountid=J.IAccountid and A.CommodityId=J.CommodityId
+  -- and ( (A.strategymainid='Arb_Spd' and J.Traderid in ('K31','K32','K36')) or (J.strategymainid='WMM' and J.Traderid = 'W12' and (J.CommodityId='00677U' or left(J.CommodityId,2)='VX')) )
+ 
+  --and J.Traderid in ('K31','K32','K36','W12') 
+
+   left join  --避險工具分類
+  (
+	SELECT  [hedgeETFId],[hedgeETFName],[hedgeLinkId1],[hedgeLinkName1],[hedgeLinkId2],[hedgeLinkName2],[hedgeLinkId3],[hedgeLinkName3] 
+	FROM [10.19.1.45].[newEDIS].[dbo].[hedgeAccountList]
+  ) K
+  on A.CommodityId=K.hedgeETFId
+
+
+  left join
+  (
+	SELECT CONVERT(varchar(10), Creat.TradeDate,111) as TradeDate, Creat.IAccountId,Creat.CommodityId, Creat.BookAmt as BuyBookAmt, Creat.RealAmt as BuyAmt, (Creat.RealAmt+Creat.CommissionFee+Creat.TradeFee+Creat.TransFee)/Creat.Shares as BuyAvgPrice, Creat.Shares as BuyQty, 
+	isnull(Redempt.BookAmt,0) as SellBookAmt, isnull(Redempt.SellAmt,0) as SellAmt, isnull(Redempt.SellAvgPrice,0) as SellAvgPrice, isnull(Redempt.SellQty,0) as SellQty
+	FROM [PIS].[dbo].[ETFAdjust] Creat
+	left join
+	(
+	SELECT TradeDate, IAccountId, Kind, CommodityId, BookAmt, RealAmt as SellAmt, (RealAmt-CommissionFee-TradeFee-TransFee)/Shares as SellAvgPrice, Shares as SellQty FROM [PIS].[dbo].[ETFAdjust] 
+	where TradeDate='2019/10/8'
+	and Kind='Redemption'
+	) Redempt
+	on Creat.TradeDate=Redempt.TradeDate and Creat.IAccountId=Redempt.IAccountId and Creat.CommodityId=Redempt.CommodityId
+	where Creat.TradeDate='2019/10/8'
+  ) L
+  on A.CommodityId=L.CommodityId and A.IAccountId=L.IAccountId
+
+
+
+  where A.TradeDate='2019/10/8' and (A.DataSource='Stock' or (A.DataSource<>'Stock1' and A.DataSource<>''))
+and (
+  ( A.strategymainid='Arb_Spd' and A.Traderid in ('K31','K32','K36') and ((A.InvShare<>0 or J.InvShare<>0) or (A.InvShare=0 and J.InvShare=0 and A.BuyShare<>0 and A.SellShare<>0) ) )   
+  or ( A.strategymainid='WMM' and A.Traderid = 'W12' and (A.CommodityId in ('00677U','00672L','00673R') or left(A.CommodityId,2) in ('VX','CL')) and ((A.InvShare<>0 or J.InvShare<>0) or (A.InvShare=0 and J.InvShare=0 and A.BuyShare<>0 and A.SellShare<>0)  ))  
+)
+
+
+  
+  
+  --and A.CommodityKind<>'Stock'
+  --and A.gaccountid='GAF_US'
+
+  ) T1
+
+  left join  --當日USD匯率
+  (
+	select * from [10.19.1.45].[newEDIS].[dbo].[ETFValue] where ProductType='FX' and DataDate='2019/10/8'
+  ) tUSD
+  on T1.FCurrency1=tUSD.ProductLink 
+
+  left join  --前日USD匯率
+  (
+	select * from [10.19.1.45].[newEDIS].[dbo].[ETFValue] where ProductType='FX' and DataDate='2019/10/7'
+  ) yUSD
+  on T1.FCurrency1=yUSD.ProductLink 
+
+  left join  --當日CNY匯率
+  (
+	select * from [10.19.1.45].[newEDIS].[dbo].[ETFValue] where ProductType='FX' and DataDate='2019/10/8'
+  ) tCNY
+  on T1.FCurrency2=tCNY.ProductLink 
+
+  left join  --前日CNY匯率
+  (
+	select * from [10.19.1.45].[newEDIS].[dbo].[ETFValue] where ProductType='FX' and DataDate='2019/10/7'
+  ) yCNY
+  on T1.FCurrency2=yCNY.ProductLink 
+
+  
+  left join  --當日JPY匯率
+  (
+	select * from [10.19.1.45].[newEDIS].[dbo].[ETFValue] where ProductType='FX' and DataDate='2019/10/8'
+  ) tJPY
+  on T1.FCurrency3=tJPY.ProductLink 
+
+  left join  --前日JPY匯率
+  (
+	select * from [10.19.1.45].[newEDIS].[dbo].[ETFValue] where ProductType='FX' and DataDate='2019/10/7'
+  ) yJPY
+  on T1.FCurrency3=yJPY.ProductLink 
+
+) S1
+
+order by  CommodityId asc
+ --order by DataDate asc, TraderNm asc, gaccountid asc, IAccountId asc, CommodityId asc
